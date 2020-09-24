@@ -74,7 +74,34 @@ I am also assuming you have an AD group ID added to the authorizations list on y
     az ad sp list --query "[?displayName=='ErcManagedApp2'].{appId:appId}"
 ```    
 
+For example the above command returns the following
+```
+    [
+        {
+            "appId": "74a5e576-bf02-4a23-add8-a031c5820b14"
+        }
+    ]
+```
+
+Also get the objectId of the service principal with the following
+
+```
+    az ad sp list --query "[?displayName=='ErcManagedApp2'].{objectId:objectId}"
+```
+
+It should return something like this
+```
+    [
+        {
+            "objectId": "7ca20ed0-5d9b-43ef-a991-527d2c386a18"
+        }
+    ]
+```
+
 2. Add the app registration to the AD group recorded in the authorizations list, alternatively, find the service principal for the app registration on "Enterprise applications" list on your directory, and add the object ID of the SP to the authorizations list.
+
+![Authorizations](./media/authorizations.png)
+
 3. Now we will simulate an application calling Azure Management API to access the managed app
 4. Go to Azure Portal, Azure Active Directory blade, find your newly created app registration, click on Certificates & secrets and add a secret. Copy the secret, you will not be able to access it again.
 4. Open a command line, and type in the following 
