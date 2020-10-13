@@ -88,7 +88,7 @@
 							"\r",
 							"pm.collectionVariables.set(\"resourceUsageId\", data.properties.billingDetails.resourceUsageId);\r",
 							"\r",
-							""
+							"pm.collectionVariables.set(\"managedAppResourceId\", data.id);"
 						],
 						"type": "text/javascript"
 					}
@@ -98,22 +98,12 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "https://management.azure.com/subscriptions/bf7adf12-c3a8-426c-9976-29f145eba70f/resourceGroups/ercmngd/providers/Microsoft.Solutions/applications/userassigned1013?api-version=2019-07-01",
+					"raw": "https://management.azure.com{{managedAppResourceId}}?api-version=2019-07-01",
 					"protocol": "https",
 					"host": [
 						"management",
 						"azure",
-						"com"
-					],
-					"path": [
-						"subscriptions",
-						"bf7adf12-c3a8-426c-9976-29f145eba70f",
-						"resourceGroups",
-						"ercmngd",
-						"providers",
-						"Microsoft.Solutions",
-						"applications",
-						"userassigned1013"
+						"com{{managedAppResourceId}}"
 					],
 					"query": [
 						{
@@ -289,6 +279,89 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "Post usage event - with resourceUri",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "262b0146-6fce-45cf-a548-01672896b05c",
+						"exec": [
+							"var now = new Date();\r",
+							"now.setHours(now.getHours() - 2);\r",
+							"\r",
+							"pm.collectionVariables.set(\"utcNowMinus2Hrs\", now.toISOString());"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{bearerTokenForMetering}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "authorization",
+						"value": "{{bearerToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "x-ms-requestid",
+						"value": "{{$guid}}",
+						"type": "text"
+					},
+					{
+						"key": "x-ms-correlationid",
+						"value": "{{$guid}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n   \"resourceUri\": {{managedAppResourceId}},\r\n  \"quantity\": 15,\r\n  \"dimension\": \"dim1\",\r\n  \"effectiveStartTime\": \"{{utcNowMinus2Hrs}}\",\r\n  \"planId\": \"userassigned\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://marketplaceapi.microsoft.com/api/usageEvent?api-version=2018-08-31",
+					"protocol": "https",
+					"host": [
+						"marketplaceapi",
+						"microsoft",
+						"com"
+					],
+					"path": [
+						"api",
+						"usageEvent"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "2018-08-31"
+						}
+					]
+				}
+			},
+			"response": []
 		}
 	],
 	"auth": {
@@ -325,59 +398,64 @@
 	],
 	"variable": [
 		{
-			"id": "8e073423-28e8-446f-b8bc-166627dbfff6",
+			"id": "3f0e340d-6da1-4a8c-8fc5-eb60a23d5426",
 			"key": "tenantId",
 			"value": "6ebb869a-f2fc-455f-b3c3-c82173d556ea"
 		},
 		{
-			"id": "6d63a0a2-9ca9-4b59-8f24-9ba8902fad7f",
+			"id": "b9a41dfb-8ec9-4afe-8fc2-cf59bd91e350",
 			"key": "clientId",
 			"value": "74a5e576-bf02-4a23-add8-a031c5820b14"
 		},
 		{
-			"id": "f348ed14-55b2-4411-b938-013f38bf1710",
+			"id": "53381abb-381d-446d-b37d-25b543de9508",
 			"key": "clientSecret",
-			"value": "..."
+			"value": "....."
 		},
 		{
-			"id": "819b7c4a-9604-433a-9de3-b2536a0fd636",
+			"id": "f3ca97ce-cf32-48ab-a360-53af4a790ec4",
 			"key": "bearerToken",
 			"value": ""
 		},
 		{
-			"id": "58b7af92-2721-4b4c-a738-bd8edc95eafe",
+			"id": "e5d463a2-4fcc-49ba-af52-7f10bf6ea5b1",
 			"key": "accessToken",
 			"value": ""
 		},
 		{
-			"id": "173bc351-b009-4b54-8a23-d551851f4399",
+			"id": "fa2c1caf-18a5-4686-89ca-5b9d35730504",
 			"key": "clientSecretForMetering",
-			"value": "..."
+			"value": "....."
 		},
 		{
-			"id": "14285b4b-4f29-41fc-81c1-e51a0f8ee06e",
+			"id": "f095baf0-cad4-45eb-a102-91af81246284",
 			"key": "resourceUsageId",
 			"value": ""
 		},
 		{
-			"id": "813f8b10-9897-4fe7-a407-ca0fa5b2e67d",
+			"id": "dc23c381-bb38-49f5-86ae-cad79ec05411",
 			"key": "bearerTokenForMetering",
 			"value": ""
 		},
 		{
-			"id": "551a1d71-6067-41c0-a7bf-9019e342fa23",
+			"id": "289eacf8-bf6a-4a4c-aa14-815ebfb145a2",
 			"key": "tenantIdForMetering",
 			"value": "6ebb869a-f2fc-455f-b3c3-c82173d556ea"
 		},
 		{
-			"id": "34e1c732-bdbe-45e9-9b8a-68ad9ff402fa",
+			"id": "87bd92da-0f26-440c-90e7-f9e4f6e75cde",
 			"key": "clientIdForMetering",
 			"value": "5f06f0a5-a804-4f80-a6da-4c07f437f1ae"
 		},
 		{
-			"id": "133e984a-0330-401f-a19e-e5517a1db0f3",
+			"id": "c3a4402b-0d52-4e3e-b9fd-6a1ae995622f",
 			"key": "utcNowMinus2Hrs",
 			"value": ""
+		},
+		{
+			"id": "4900d371-fabb-449b-bc6f-5fc4b0400b22",
+			"key": "managedAppResourceId",
+			"value": "/subscriptions/bf7adf12-c3a8-426c-9976-29f145eba70f/resourceGroups/ercmngd/providers/Microsoft.Solutions/applications/userassigned1013"
 		}
 	],
 	"protocolProfileBehavior": {}
