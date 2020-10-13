@@ -1,0 +1,384 @@
+{
+	"info": {
+		"_postman_id": "bf05fae4-bfb5-4212-a84c-dda4c7f10fc3",
+		"name": "Managed app metering",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Get AccessToken for management API",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "6dcf6325-f841-4d08-be18-7c8767429f1c",
+						"exec": [
+							"var data = JSON.parse(responseBody);",
+							"",
+							"pm.collectionVariables.set(\"accessToken\", data.access_token);",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/x-www-form-urlencoded"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						},
+						{
+							"key": "Client_id",
+							"value": "{{clientId}}",
+							"type": "text"
+						},
+						{
+							"key": "client_secret",
+							"value": "{{clientSecret}}",
+							"type": "text"
+						},
+						{
+							"key": "scope",
+							"value": "https://management.core.windows.net/.default",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://login.microsoftonline.com/{{tenantId}}/oauth2/v2.0/token",
+					"protocol": "https",
+					"host": [
+						"login",
+						"microsoftonline",
+						"com"
+					],
+					"path": [
+						"{{tenantId}}",
+						"oauth2",
+						"v2.0",
+						"token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get managed app",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "a153f0d3-db42-4a48-be5e-3ea775685408",
+						"exec": [
+							"var data = JSON.parse(responseBody);\r",
+							"\r",
+							"pm.collectionVariables.set(\"resourceUsageId\", data.properties.billingDetails.resourceUsageId);\r",
+							"\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "https://management.azure.com/subscriptions/bf7adf12-c3a8-426c-9976-29f145eba70f/resourceGroups/ercmngd/providers/Microsoft.Solutions/applications/userassigned1013?api-version=2019-07-01",
+					"protocol": "https",
+					"host": [
+						"management",
+						"azure",
+						"com"
+					],
+					"path": [
+						"subscriptions",
+						"bf7adf12-c3a8-426c-9976-29f145eba70f",
+						"resourceGroups",
+						"ercmngd",
+						"providers",
+						"Microsoft.Solutions",
+						"applications",
+						"userassigned1013"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "2019-07-01"
+						}
+					]
+				},
+				"description": "Get it from the result of \r\n$MetadataUrl = \"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F\"\r\n$resourceGroupInfo = curl -Headers $Headers $managementUrl | select -ExpandProperty Content | ConvertFrom-Json"
+			},
+			"response": []
+		},
+		{
+			"name": "Post usage event",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "262b0146-6fce-45cf-a548-01672896b05c",
+						"exec": [
+							"var now = new Date();\r",
+							"now.setHours(now.getHours() - 2);\r",
+							"\r",
+							"pm.collectionVariables.set(\"utcNowMinus2Hrs\", now.toISOString());"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{bearerTokenForMetering}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "authorization",
+						"value": "{{bearerToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "x-ms-requestid",
+						"value": "{{$guid}}",
+						"type": "text"
+					},
+					{
+						"key": "x-ms-correlationid",
+						"value": "{{$guid}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"usageEventRequest\": \"{{$guid}}\",\r\n  \"resourceId\": \"{{resourceUsageId}}\",\r\n  \"quantity\": 15,\r\n  \"dimension\": \"dim1\",\r\n  \"effectiveStartTime\": \"{{utcNowMinus2Hrs}}\",\r\n  \"planId\": \"userassigned\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "https://marketplaceapi.microsoft.com/api/usageEvent?api-version=2018-08-31",
+					"protocol": "https",
+					"host": [
+						"marketplaceapi",
+						"microsoft",
+						"com"
+					],
+					"path": [
+						"api",
+						"usageEvent"
+					],
+					"query": [
+						{
+							"key": "api-version",
+							"value": "2018-08-31"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get AccessToken for Metering",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "6dcf6325-f841-4d08-be18-7c8767429f1c",
+						"exec": [
+							"var data = JSON.parse(responseBody);",
+							"",
+							"pm.collectionVariables.set(\"bearerTokenForMetering\", data.access_token);",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{bearerTokenForMetering}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/x-www-form-urlencoded"
+					}
+				],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "client_credentials",
+							"type": "text"
+						},
+						{
+							"key": "Client_id",
+							"value": "{{clientIdForMetering}}",
+							"type": "text"
+						},
+						{
+							"key": "client_secret",
+							"value": "{{clientSecretForMetering}}",
+							"type": "text"
+						},
+						{
+							"key": "Scope",
+							"value": "20e940b3-4c77-4b0b-9a53-9e16a1b010a7/.default",
+							"type": "text"
+						}
+					]
+				},
+				"url": {
+					"raw": "https://login.microsoftonline.com/{{tenantIdForMetering}}/oauth2/v2.0/token",
+					"protocol": "https",
+					"host": [
+						"login",
+						"microsoftonline",
+						"com"
+					],
+					"path": [
+						"{{tenantIdForMetering}}",
+						"oauth2",
+						"v2.0",
+						"token"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{accessToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"id": "09851bf2-335b-4f3c-97b7-a7050132d351",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"id": "90774f9e-e3ae-4f90-8279-8796e5edb8ef",
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"id": "8b28693a-6598-4535-8272-6db00778c956",
+			"key": "tenantId",
+			"value": "6ebb869a-f2fc-455f-b3c3-c82173d556ea"
+		},
+		{
+			"id": "a480a5fc-9bce-48a9-82a3-146a4f463c97",
+			"key": "clientId",
+			"value": "74a5e576-bf02-4a23-add8-a031c5820b14"
+		},
+		{
+			"id": "cef49477-7db6-425b-9e5c-5815f16204c7",
+			"key": "clientSecret",
+			"value": "........"
+		},
+		{
+			"id": "db831f2b-18e6-4361-8161-b99c0bc19767",
+			"key": "bearerToken",
+			"value": ""
+		},
+		{
+			"id": "5ccc920c-3722-4f51-9610-d2e6b33b64f1",
+			"key": "accessToken",
+			"value": ""
+		},
+		{
+			"id": "33729d8b-932b-4530-ab7c-6650b7a7761f",
+			"key": "clientSecretForMetering",
+			"value": "......."
+		},
+		{
+			"id": "9562ca9b-cd17-4f3f-932c-8a2281b225d1",
+			"key": "resourceUsageId",
+			"value": ""
+		},
+		{
+			"id": "90de9239-ce66-400b-b3b8-38c6eaedfe37",
+			"key": "bearerTokenForMetering",
+			"value": ""
+		},
+		{
+			"id": "62a1b5bc-0caa-4f3b-a6d7-d5ed43adf70c",
+			"key": "tenantIdForMetering",
+			"value": "6ebb869a-f2fc-455f-b3c3-c82173d556ea"
+		},
+		{
+			"id": "7166352e-acd7-47d3-af06-63b334c6785d",
+			"key": "clientIdForMetering",
+			"value": "5f06f0a5-a804-4f80-a6da-4c07f437f1ae"
+		},
+		{
+			"id": "da25c8dd-2663-4dae-b7f1-1436da1a1296",
+			"key": "utcNowMinus2Hrs",
+			"value": ""
+		}
+	],
+	"protocolProfileBehavior": {}
+}
