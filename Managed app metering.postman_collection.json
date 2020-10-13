@@ -180,7 +180,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n    \"usageEventRequest\": \"{{$guid}}\",\r\n  \"resourceId\": \"{{resourceUsageId}}\",\r\n  \"quantity\": 15,\r\n  \"dimension\": \"dim1\",\r\n  \"effectiveStartTime\": \"{{utcNowMinus2Hrs}}\",\r\n  \"planId\": \"userassigned\"\r\n}",
+					"raw": "{\r\n  \"resourceId\": \"{{resourceUsageId}}\",\r\n  \"quantity\": 15,\r\n  \"dimension\": \"dim1\",\r\n  \"effectiveStartTime\": \"{{utcNowMinus2Hrs}}\",\r\n  \"planId\": \"userassigned\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -325,57 +325,57 @@
 	],
 	"variable": [
 		{
-			"id": "8b28693a-6598-4535-8272-6db00778c956",
+			"id": "8e073423-28e8-446f-b8bc-166627dbfff6",
 			"key": "tenantId",
 			"value": "6ebb869a-f2fc-455f-b3c3-c82173d556ea"
 		},
 		{
-			"id": "a480a5fc-9bce-48a9-82a3-146a4f463c97",
+			"id": "6d63a0a2-9ca9-4b59-8f24-9ba8902fad7f",
 			"key": "clientId",
 			"value": "74a5e576-bf02-4a23-add8-a031c5820b14"
 		},
 		{
-			"id": "cef49477-7db6-425b-9e5c-5815f16204c7",
+			"id": "f348ed14-55b2-4411-b938-013f38bf1710",
 			"key": "clientSecret",
-			"value": "........"
+			"value": "..."
 		},
 		{
-			"id": "db831f2b-18e6-4361-8161-b99c0bc19767",
+			"id": "819b7c4a-9604-433a-9de3-b2536a0fd636",
 			"key": "bearerToken",
 			"value": ""
 		},
 		{
-			"id": "5ccc920c-3722-4f51-9610-d2e6b33b64f1",
+			"id": "58b7af92-2721-4b4c-a738-bd8edc95eafe",
 			"key": "accessToken",
 			"value": ""
 		},
 		{
-			"id": "33729d8b-932b-4530-ab7c-6650b7a7761f",
+			"id": "173bc351-b009-4b54-8a23-d551851f4399",
 			"key": "clientSecretForMetering",
-			"value": "......."
+			"value": "..."
 		},
 		{
-			"id": "9562ca9b-cd17-4f3f-932c-8a2281b225d1",
+			"id": "14285b4b-4f29-41fc-81c1-e51a0f8ee06e",
 			"key": "resourceUsageId",
 			"value": ""
 		},
 		{
-			"id": "90de9239-ce66-400b-b3b8-38c6eaedfe37",
+			"id": "813f8b10-9897-4fe7-a407-ca0fa5b2e67d",
 			"key": "bearerTokenForMetering",
 			"value": ""
 		},
 		{
-			"id": "62a1b5bc-0caa-4f3b-a6d7-d5ed43adf70c",
+			"id": "551a1d71-6067-41c0-a7bf-9019e342fa23",
 			"key": "tenantIdForMetering",
 			"value": "6ebb869a-f2fc-455f-b3c3-c82173d556ea"
 		},
 		{
-			"id": "7166352e-acd7-47d3-af06-63b334c6785d",
+			"id": "34e1c732-bdbe-45e9-9b8a-68ad9ff402fa",
 			"key": "clientIdForMetering",
 			"value": "5f06f0a5-a804-4f80-a6da-4c07f437f1ae"
 		},
 		{
-			"id": "da25c8dd-2663-4dae-b7f1-1436da1a1296",
+			"id": "133e984a-0330-401f-a19e-e5517a1db0f3",
 			"key": "utcNowMinus2Hrs",
 			"value": ""
 		}
