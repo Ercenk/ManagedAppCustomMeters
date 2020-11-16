@@ -9,6 +9,18 @@ What you need to know
 - Managed applications
 - Calling marketplace APIs
 
+Here is what we will cover in this article.
+
+- [Posting custom meters for a Commercial Marketplace managed app offer](#posting-custom-meters-for-a-commercial-marketplace-managed-app-offer)
+  - [Managed applications overview](#managed-applications-overview)
+  - [Posting usage data to Commercial Marketplace using metering APIs](#posting-usage-data-to-commercial-marketplace-using-metering-apis)
+    - [Option 1 - calling the metering API directly from the managed resource group](#option-1---calling-the-metering-api-directly-from-the-managed-resource-group)
+      - [Code running on a VM](#code-running-on-a-vm)
+        - [Getting an access token](#getting-an-access-token)
+        - [Getting the value for resourceUri or resourceId](#getting-the-value-for-resourceuri-or-resourceid)
+      - [Using an Azure Web App](#using-an-azure-web-app)
+    - [Option 2 - calling the metering API from a central service](#option-2---calling-the-metering-api-from-a-central-service)
+
 ## Managed applications overview
 
 The [Azure documentation for managed applications](https://docs.microsoft.com/en-us/azure/azure-resource-manager/managed-applications/overview) says this:
@@ -40,13 +52,188 @@ At the end of this operation, the various identities, such as the customer admin
 
 You can take two approaches when posting usage using the metering APIs.
 1. Post directly by the deployed resources on the customer deployments.
-2. Send usage data to your central location you maintain, and post from there.
+2. Send usage data to your central service you maintain, and post from there.
+
+When going through those routes, you will need the following.
+1. An access token assigned by Azure Active Directory for a principal that can call the marketplace API (as defined by the resource id 20e940b3-4c77-4b0b-9a53-9e16a1b010a7/.default). The principal can be multiple types, user, AAD app registration, managed identity etc. This will be included in the authorization header of the request in bearer scheme. Depending on where you are calling the metering API from, this can be assigned to different principals. We will talk about how a managed identity can be used to call the API if you are calling from within the deployed resources, or how an Azure Active Directory App registration can be used to achieve the same from a central services.
+2. The value for **resourceId**, or **resourceUri** for posting the meter against. 
+   1. **resourceId** can be SaaS offer subscription ID for the SaaS offers, or **billingDetails.resourceUsageId** property if the managed application
+   2. **resourceUri** is only applicable for managed applications, and it is the resource id of the managed application that looks like '*/subscriptions/bf7adf12-c3a8-426c-9976-29f145eba70f/resourceGroups/ercmngd/providers/Microsoft.Solutions/applications/userassigned1013*'
 
 ![Custom meter options](./media/custommeteroptions.png)
 
-I will go through option 2 for the moment, and later update this document for option 1.
+To summarize, here is how it looks
 
-### Option 2
+API calling location | Getting the token | Getting the resourceUri or resourceId
+---------------------|-------------------|--------------------------------------
+Option 1: Call metering API directly | 1. Use a managed identity <br> 2. Use AAD app registration and pass the client secret | Use Azure management API to get resourceUri or resourceId
+Option 2: Call metering API from a central service | Use AAD app registration | Use Azure management API to get resourceUri or resourceId
+
+<br>
+
+
+Let's see how you can get those and post a custom meter request. You will need to have code running in both cases on the managed resource group in a resource. I am going to use a VM or Web App in both of the options for hosting the code and demonstrate how you can get the access token (1) and the value for resourceId (or resourceUri) for posting the meters to.
+
+### Option 1 - calling the metering API directly from the managed resource group
+
+
+
+#### Code running on a VM
+
+
+You will need to implement following in your ARM template
+1.  Have a [user managed identity](https://github.com/Ercenk/ManagedAppCustomMeters/blob/master/src/appArtifacts/user-assigned/mainTemplate.json#L171)
+2.  [Assign it to the VM ](https://github.com/Ercenk/ManagedAppCustomMeters/blob/master/src/appArtifacts/user-assigned/mainTemplate.json#L182)
+3.  Give [Reader access to the resource group](https://github.com/Ercenk/ManagedAppCustomMeters/blob/master/src/appArtifacts/user-assigned/mainTemplate.json#L245) 
+4.  Set [**delegatedManagedIdentityResourceId** property](https://github.com/Ercenk/ManagedAppCustomMeters/blob/master/src/appArtifacts/user-assigned/mainTemplate.json#L248) to make the connection with the managed app 
+
+##### Getting an access token 
+Now let's see how you can get the access token. You can get a token with one of the two methods.
+1. Use the managed identity provisioned in the template. We will demonstrate this approach below.
+2. Use the AAD App registration details on the "Technical details" tab of the offer on Partner Center. You need to pass in the client secret in a safe way to be able to request a token for this app. Please see the [sample](https://github.com/arsenvlad/azure-managed-app-publisher-secret) demonstrating how you can extend a secret from a Key Vault managed by the publisher to another Key Vault deployed as a part of the managed application.
+
+
+
+Let's move on to see how you can use the managed identity to request an access token. We need to access the metadata URL for the VM to get this token as follows.
+
+``` PowerShell
+    $metadataTokenUrl = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=20e940b3-4c77-4b0b-9a53-9e16a1b010a7"
+    $marketplaceToken = Invoke-RestMethod -Headers @{"Metadata" = "true"} -Uri $managementTokenUrl 
+```
+
+Notice we are requesting this token for the marketplace API resource with the id **20e940b3-4c77-4b0b-9a53-9e16a1b010a7** see [this document for details ](https://docs.microsoft.com/en-us/azure/marketplace/partner-center-portal/pc-saas-registration#request-body:~:text=Target%20resource%20for%20which%20the%20token,the%20target%20resource%20in%20this%20case.)
+And the reason this token will work is because of step (4) above for the ARM template.
+
+##### Getting the value for resourceUri or resourceId
+
+Next up is how to get the **resourceUri** value. In order to get that, we need to take multiple steps.
+
+
+1.  On the VM, grab a token for management API from the metadata endpoint. Notice the resource we are requesting the token for, this time it is https://management.azure.com, the Azure management API
+``` PowerShell
+    $metadataTokenUrl = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.azure.com%2F"
+    $Token = Invoke-RestMethod -Headers @{"Metadata" = "true"} -Uri $managementTokenUrl 
+ ```
+
+2.	Call the metadata endpoint to grab the subscription ID and resource group name
+``` PowerShell
+    $Headers = @{}
+    $Headers.Add("Authorization","$($Token.token_type) "+ " " + "$($Token.access_token)")
+    $metadataUrl = "http://169.254.169.254/metadata/instance?api-version=2019-06-01"
+    $metadata = Invoke-RestMethod -Headers @{'Metadata'='true'} -Uri $metadataUrl 
+```
+
+3.	We will use the values for subscription ID and resource group name to call management API to get the managed app details. This will give you something like /subscriptions/bf7adf12-c3a8-426c-9976-29f145eba70f/resourceGroups/ercmngd/providers/Microsoft.Solutions/applications/userassigned1112
+``` PowerShell
+    $managementUrl = "https://management.azure.com/subscriptions/" + $metadata.compute.subscriptionId + "/resourceGroups/" + $metadata.compute.resourceGroupName + "?api-version=2019-10-01"
+    $resourceGroupInfo = Invoke-RestMethod -Headers $Headers -Uri $managementUrl 
+    $managedappId = $resourceGroupInfo.managedBy 
+```
+
+4. Now let's use the code at the top to get the token for calling marketplace APIs
+``` PowerShell
+    $metadataTokenUrl = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=20e940b3-4c77-4b0b-9a53-9e16a1b010a7"
+    $marketplaceToken = Invoke-RestMethod -Headers @{"Metadata" = "true"} -Uri $managementTokenUrl 
+```
+
+5. At this point we have the token to call the metering API with, plus all of the details. But first we need to adjust some details for the service client, since marketplace API implements TLS 1.2.
+
+``` PowerShell
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls11, [Net.SecurityProtocolType]::Tls12;
+```
+
+5. Now TLS 1.2 is out of the way, and we have the token, let's build the payload. Notice the trick I am using to make sure I am reporting for this hour only with a 5 minute delay.
+
+``` PowerShell
+    $lastHourMinusFiveMinutes = (Get-Date).AddMinutes(-65).ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+    $body = @{ 'resourceUri' = $managedappId; 'quantity' = 15; 'dimension' = 'dim1'; 'effectiveStartTime' = $lastHourMinusFiveMinutes; 'planId' = 'userassigned'} | ConvertTo-Json
+    
+```
+
+6. And post the meter, notice the content type header.
+``` PowerShell
+    $Headers = @{}
+    $Headers.Add("Authorization","$($marketplaceToken.token_type) "+ " " + "$($marketplaceToken.access_token)")
+
+    $response = Invoke-RestMethod 'https://marketplaceapi.microsoft.com/api/usageEvent?api-version=2018-08-31' -Method 'POST' -ContentType "application/json" -Headers $Headers -Body $body -Verbose
+```
+
+What if we want to use resourceId instead of resourceUri? For that case, your managed identity needs to have at least Read permissions on the Managed Application resource itself. You can achieve this by using an incremental deployment in an ARM template. Let's see how it works. Following snippet demonstrates how you can a nested deployment in an ARM template with an embedded template marked with incremental deployment mode.
+
+
+``` json
+  "variables": {
+    ....
+    "networkSecurityGroupName": "default-NSG",
+    "managedApplicationId": "[resourceGroup().managedBy]",
+    "managedApplicationName": "[last(split(variables('managedApplicationId'), '/'))]",
+    "roleId": "acdd72a7-3385-48ef-bd42-f606fba81ae7"
+  },
+  ...
+    {
+      "apiVersion": "2019-04-01-preview",
+      "name": "[guid(resourceGroup().id)]",
+      "type": "Microsoft.Authorization/roleAssignments",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('vmName'))]"
+      ],
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('roleId'))]",
+        "principalId": "[reference(concat('Microsoft.ManagedIdentity/userAssignedIdentities/',concat(variables('vmName'), 'ManagedIdentity'))).principalId]",
+        "scope": "[resourceGroup().id]",
+        "principalType": "ServicePrincipal",
+        "delegatedManagedIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(variables('vmName'), 'ManagedIdentity'))]"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2017-05-10",
+      "name": "roleAssignmentNestedTemplate",
+      "resourceGroup": "[resourceGroup().name]",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Solutions/applications/providers/roleAssignments",
+              "apiVersion": "2019-04-01-preview",
+              "name": "[concat(variables('managedApplicationName'), '/Microsoft.Authorization/', newGuid())]",
+              "properties": {
+                "roleDefinitionId": "[concat(subscription().id, '/providers/Microsoft.Authorization/roleDefinitions/', variables('roleId'))]",
+                "principalId": "[reference(concat('Microsoft.ManagedIdentity/userAssignedIdentities/',concat(variables('vmName'), 'ManagedIdentity'))).principalId]",
+                "delegatedManagedIdentityResourceId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', concat(variables('vmName'), 'ManagedIdentity'))]",
+                "scope": "[variables('managedApplicationId')]",
+                "principalType": "ServicePrincipal"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', variables('vmName'))]"
+      ]
+    }
+```
+Once the user assigned managed identity is assigned the appropriate role to the managed application, run the steps 1 through 3 to get an access token as well as the managed application's resource id. Then call the following to get the **resourceUsageId**.
+
+``` PowerShell
+## resource usage id
+# Get resourceUsageId from the managed app
+
+$managedAppUrl = "https://management.azure.com" + $managedappId + "\?api-version=2019-07-01"
+$managedApp = Invoke-RestMethod -Headers $Headers -Uri $managedAppUrl  
+
+$resourceUsageId = $ManagedApp.properties.billingDetails.resourceUsageId
+```
+
+#### Using an Azure Web App
+
+**Coming soon**
+
+### Option 2 - calling the metering API from a central service
 
 Let's first look at the various identities that needs to access resources for reading data and calling the metering APIs.
 
