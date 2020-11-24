@@ -1,4 +1,12 @@
 # Posting custom meters for a Commercial Marketplace managed app offer
+<br>
+<br>
+
+# I am not maintaining this repo any more. Moved to https://github.com/Azure-Samples/commercial-marketplace-managed-application-metering-samples.git 
+
+<br>
+<br>
+<br>
 
 I have been working with a few teams to help them use managed app offers with custom meters. I would like to consolidate my notes here for the general public's consumption. Usual disclaimer apply, this is sample only, use it at your own risk, understand the concepts throughly before implementing your own. 
 
